@@ -1,0 +1,102 @@
+#!/bin/bash
+
+optcheck(){
+	optstat="error"
+	case $1 in
+		-c) optstat="ok";;
+		-w) optstat="ok";;
+		-e) optstat="ok";;
+		*);;
+	esac
+	echo "$optstat"
+}
+
+usagemsg(){
+	echo "usage: -c <numeric value> -w <numeric value> -e <email address>"
+	echo "(options could be declared in any order)"
+}
+
+if [ $# -ne 6 ] 
+then
+	echo "incorrect number of arguments. all options should be declared"
+	usagemsg
+	exit 3
+elif [ $(optcheck "$1") == "error" ]
+then
+	echo "invalid argument" $1 "passed"
+	usagemsg
+	exit 3
+elif [ $(optcheck "$3") == "error" ]
+then
+	echo "invalid argument" $3 "passed"
+	usagemsg
+	exit 3
+elif [ $(optcheck "$5") == "error" ]
+then
+	echo "invalid argument" $5 "passed"
+	usagemsg
+	exit 3
+elif [ $1 == $3 ] || [ $3 == $5 ] || [ $5 == $1 ]
+then
+	echo "repeated options not supported."
+	usagemsg
+	exit 3 
+fi
+
+
+while getopts "c:w:e:" option
+do
+	if [ $option == "c" ]
+	then
+		crit=$OPTARG
+	elif [ $option == "w" ]
+	then
+		warn=$OPTARG
+	elif [ $option == "e" ]
+	then
+		email=$OPTARG
+	fi
+done
+
+echo "crit:" $crit
+echo "warn:" $warn
+echo "email:" $email
+
+isnum='^[0-9]+$'
+
+if ! [[ $crit =~ $isnum ]] || ! [[ $warn =~ $isnum ]]
+then
+	echo "-c and -w options should be numeric"
+	usagemsg
+	exit 3
+elif [ $warn -gt $crit ]
+then
+	echo "-c value must be greater than -w value"
+	usagemsg
+	exit 3
+elif [ $warn -gt 100 ] || [ $crit -gt 100 ]
+then
+	echo "-c and -w values must not be greater than 100"
+	usagemsg
+	exit 3
+fi
+
+used_mem=$(free | grep Mem: | awk '{ print $3 }')
+total_mem=$(free | grep Mem: | awk '{ print $2 }')
+used=$(bc <<< "scale=2; $used_mem / $total_mem")
+convert_used=$(bc <<< "scale=0;$used * 100")
+percent_used=${convert_used%.*}
+
+if [ $percent_used -ge $crit ]
+then
+	echo "critical memory usage (>"$crit"%): currently at" $percent_used"%"
+	exit 2
+elif [ $percent_used -lt $crit ] && [ $percent_used -ge $warn ]
+then
+	echo "memory usage warning (>"$warn"%): currently at" $percent_used"%"
+	exit 1
+else
+	echo "memory usage is within set thresholds. Currently at" $percent_used"%"
+	exit 0
+fi
+exit 0

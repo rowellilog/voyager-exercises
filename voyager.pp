@@ -63,7 +63,18 @@ class voyager {
 		command => '/home/monitor/src/my_memory_check -c 90 -w 80 -e rowell.ilog@gmail.com',
 		user => 'root',
 		minute => 10,
+		before => File['/etc/localtime'],
 	}
+
+	file { '/etc/localtime':
+		ensure => '/usr/share/zoneinfo/Asia/Manila',
+		before => Exec['set_hostname'],
+	}
+	
+	exec { 'set_hostname':
+		command => "/bin/sed -i.bak '/HOSTNAME/ s/^.*$/HOSTNAME=bpx.server.local/' /etc/sysconfig/network",
+	}
+
 }
 
 class { 'voyager': }
